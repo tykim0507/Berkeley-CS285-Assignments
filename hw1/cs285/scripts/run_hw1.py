@@ -157,8 +157,9 @@ def run_training_loop(params):
           # HINT2: use np.random.permutation to sample random indices
           # HINT3: return corresponding data points from each array (i.e., not different indices from each array)
           # for imitation learning, we only need observations and actions.  
-          ob_batch, ac_batch = TODO
-
+          buffer_size = len(replay_buffer)
+          random_indices = np.random.permutation(buffer_size)[:params['train_batch_size']]
+          ob_batch, ac_batch = map(ptu.from_numpy, [replay_buffer.obs[random_indices], replay_buffer.acs[random_indices]])
           # use the sampled data to train an agent
           train_log = actor.update(ob_batch, ac_batch)
           training_logs.append(train_log)
@@ -187,7 +188,11 @@ def run_training_loop(params):
 
             logs = utils.compute_metrics(paths, eval_paths)
             # compute additional metrics
-            logs.update(training_logs[-1]) # Only use the last log for now
+            #logs.update(training_logs[-1]) # Only use the last log for now
+            # log the loss
+            for idx, training_log in enumerate(training_logs):
+                for key, value in training_log.items():
+                    logger.log_scalar(value, key, idx)
             logs["Train_EnvstepsSoFar"] = total_envsteps
             logs["TimeSinceStart"] = time.time() - start_time
             if itr == 0:
@@ -260,6 +265,8 @@ def main():
         os.makedirs(data_path)
     logdir = logdir_prefix + args.exp_name + '_' + args.env_name + '_' + time.strftime("%d-%m-%Y_%H-%M-%S")
     logdir = os.path.join(data_path, logdir)
+    # #for debugging
+    # logdir = os.path.join(data_path, "debug")
     params['logdir'] = logdir
     if not(os.path.exists(logdir)):
         os.makedirs(logdir)
